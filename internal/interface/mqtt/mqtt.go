@@ -3,6 +3,7 @@ package mqtt
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"time"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
@@ -33,8 +34,11 @@ func NewMqttSubscriber(
 
 func (s *subscriber) SensorSubscriber(client mqtt.Client, msg mqtt.Message) {
 	s.log.Debug().
-		Str("topic", msg.Topic()).
-		Msg(string(msg.Payload()))
+		Msg(fmt.Sprintf(
+			"mqtt: acting upon topic %s: %s",
+			msg.Topic(),
+			string(msg.Payload()),
+		))
 
 	jsonstr, err := aes256.Decrypt(
 		string(msg.Payload()),
@@ -43,17 +47,18 @@ func (s *subscriber) SensorSubscriber(client mqtt.Client, msg mqtt.Message) {
 	)
 	if err != nil {
 		s.log.Err(err).
-			Bytes("payload", msg.Payload()).
-			Msg("decrypting mqtt payload aes cipher")
+			Msg(fmt.Sprintf(
+				"mqtt: failed to decrypting payload: %s",
+				msg.Payload(),
+			))
 		return
 	}
-	s.log.Debug().Msg(jsonstr)
+	s.log.Debug().Msg(fmt.Sprintf("mqtt: decrypted payload: %s", jsonstr))
 
 	var potability domain.WaterPotability
 	if err := json.Unmarshal([]byte(jsonstr), &potability); err != nil {
 		s.log.Err(err).
-			Str("payload", jsonstr).
-			Msg("decoding mqtt json payload string to struct")
+			Msg(fmt.Sprintf("mqtt: failed to parse json string: %s", jsonstr))
 		return
 	}
 
@@ -62,7 +67,7 @@ func (s *subscriber) SensorSubscriber(client mqtt.Client, msg mqtt.Message) {
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
 	if err := s.service.PredictWaterPotability(ctx, potability); err != nil {
-		s.log.Err(err).Msg("predict water potability")
+		s.log.Err(err).Msg("mqtt: failed to inference metrics")
 		return
 	}
 }

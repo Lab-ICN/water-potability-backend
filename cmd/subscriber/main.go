@@ -24,11 +24,11 @@ func main() {
 	path := os.Getenv("CONFIG_FILEPATH")
 	content, err := os.ReadFile(path)
 	if err != nil {
-		stdlog.Fatalf("opening config file at %s: %v\n", path, err)
+		stdlog.Fatalf("config: opening config file at %s: %v\n", path, err)
 	}
 	cfg := new(config.Config)
 	if err := json.Unmarshal(content, cfg); err != nil {
-		stdlog.Fatalf("parsing config file content: %v\n", err)
+		stdlog.Fatalf("config: parsing config file content: %v\n", err)
 	}
 	ctx := context.Background()
 
@@ -38,22 +38,23 @@ func main() {
 		Timestamp().
 		Logger().
 		Level(zerolog.DebugLevel)
+	log.Info().Msg("app: starting")
 
 	grpcClient, err := grpc.NewClient(cfg)
 	if err != nil {
-		stdlog.Fatalf("failed to start grpc connection: %v\n", err)
+		stdlog.Fatalf("grpc: failed to establish connection: %v\n", err)
 	}
 	defer grpcClient.Close()
 
-	log.Info().Msg("grpc connection established")
+	log.Info().Msg("grpc: connection established")
 
 	influxdb, err := influxdb.NewClient(ctx, &cfg.InfluxDB)
 	if err != nil {
-		stdlog.Fatalf("failed to start influxdb connection: %v\n", err)
+		stdlog.Fatalf("influxdb: failed to establish connection: %v\n", err)
 	}
 	defer influxdb.Close()
 
-	log.Info().Msg("influxdb connection established")
+	log.Info().Msg("influxdb: connection established")
 
 	wpClient := pb.NewWaterPotabilityServiceClient(grpcClient)
 	wpRepository := repository.NewWaterPotabilityRepository(influxdb, &cfg.InfluxDB)
@@ -62,7 +63,7 @@ func main() {
 
 	mqtt, err := _mqtt.Listen(subscriber, cfg, &log)
 	if err != nil {
-		stdlog.Fatalf("failed to start mqtt connection: %v\n", err)
+		stdlog.Fatalf("mqtt: failed to establish connection: %v\n", err)
 	}
 	defer mqtt.Disconnect(250)
 
@@ -71,9 +72,9 @@ func main() {
 	done := make(chan struct{}, 1)
 	go func() {
 		<-sig
-		stdlog.Println("shutting down...")
+		stdlog.Println("app: shutting down...")
 		done <- struct{}{}
 	}()
 	<-done
-	stdlog.Println("exiting...")
+	stdlog.Println("app: exiting...")
 }
