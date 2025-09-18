@@ -22,26 +22,18 @@ func Listen(
 			cfg.MQTT.Host,
 			cfg.MQTT.Port,
 		)).
-		SetUsername(cfg.MQTT.Username).
-		SetPassword(cfg.MQTT.Password).
 		SetKeepAlive(15 * time.Second).
 		SetPingTimeout(10 * time.Second).
 		SetAutoReconnect(true).
 		SetDefaultPublishHandler(func(_ mqtt.Client, _ mqtt.Message) {}).
 		SetConnectionLostHandler(func(_ mqtt.Client, _ error) {
-			log.Warn().
-				Str("protocol", "mqtt").
-				Msg("connection lost")
+			log.Warn().Msg("mqtt: connection lost")
 		}).
 		SetReconnectingHandler(func(_ mqtt.Client, _ *mqtt.ClientOptions) {
-			log.Info().
-				Str("protocol", "mqtt").
-				Msg("reconnecting")
+			log.Info().Msg("mqtt: reconnecting")
 		}).
 		SetOnConnectHandler(func(client mqtt.Client) {
-			log.Info().
-				Str("protocol", "mqtt").
-				Msg("connected")
+			log.Info().Msg("mqtt: connection established")
 
 			errChan := make(chan error)
 
@@ -56,7 +48,7 @@ func Listen(
 			}
 
 			if err := <-errChan; err != nil {
-				log.Error().Err(err).Msg("attempting to subscribe to mqtt topic")
+				log.Error().Err(err).Msg("mqtt: topic subscription failed")
 			}
 		})
 
